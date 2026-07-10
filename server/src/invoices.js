@@ -147,7 +147,7 @@ export function createInvoiceService(db, ledger) {
     const remaining = total - paid;
     if (amountCents > remaining) {
       throw new DomainError(
-        `Overpayment rejected: invoice #${invoiceId} has ${remaining} cents remaining, attempted ${amountCents}`,
+        `Overpayment rejected: invoice #${invoiceId} has $${(remaining / 100).toFixed(2)} remaining, attempted $${(amountCents / 100).toFixed(2)}`,
         ERR.OVERPAYMENT
       );
     }
@@ -157,7 +157,7 @@ export function createInvoiceService(db, ledger) {
       debitAccountId: ledger.getAccountByName('Cash').id,
       creditAccountId: ledger.getAccountByName('Accounts Receivable').id,
       amountCents,
-      description: `Payment of ${amountCents}c on invoice #${invoiceId}`,
+      description: `Payment of $${(amountCents / 100).toFixed(2)} on invoice #${invoiceId}`,
       idempotencyKey: `payment-${idempotencyKey}`,
     });
     const info = stmts.insertPayment.run(invoiceId, amountCents, idempotencyKey, transaction.id);
