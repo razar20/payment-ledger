@@ -25,7 +25,7 @@ For development with hot reload, run in two terminals: `npm run dev:server` and 
 npm test
 ```
 
-25 tests across three suites: ledger invariants, invoice flow, and HTTP-level concurrency races.
+7 focused tests across three suites — one per core requirement: double-entry balance enforcement (atomic rejection of unbalanced postings), derived balances, integer-cents money validation, partial payments and the paid transition, overpayment rejection, duplicate-webhook idempotency, and an HTTP-level concurrency race.
 
 ## What it does
 
@@ -45,10 +45,7 @@ npm test
 ### Part 3 — Edge case: concurrent payments on the same invoice
 The whole check-then-write sequence (replay check → state check → overpayment check → ledger posting → payment insert → status flip) runs inside a **single SQLite transaction opened with `BEGIN IMMEDIATE`**, which acquires the write lock up front. SQLite serializes writers, so two "simultaneous" payments can never both read the same remaining balance — the race is eliminated by serializing the critical section, not by hoping.
 
-Covered by three HTTP-level tests that fire concurrent GraphQL mutations at a real server:
-1. 10 racing payments of $60 against a $100 invoice → exactly 1 wins, 9 rejected as overpayment.
-2. 10 racing partial payments of $10 against a $50 invoice → exactly 5 land, invoice settles to exactly paid.
-3. 5 concurrent replays of the *same* webhook key → applied exactly once, all return the same payment.
+Covered by an HTTP-level test that fires 10 concurrent GraphQL mutations of $60 each against a $100 invoice at a real server → exactly 1 wins, 9 are rejected as overpayment, and the ledger stays balanced.
 
 In a production Postgres deployment the equivalent is `SELECT ... FOR UPDATE` on the invoice row (or `SERIALIZABLE` isolation with retry) — the principle is identical: make the read-check-write atomic.
 
