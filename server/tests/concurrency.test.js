@@ -19,7 +19,7 @@ describe('concurrent payments on the same invoice', () => {
     return res.json();
   }
 
-  test('N racing payments cannot overpay the invoice; ledger stays balanced', async () => {
+  test('N racing payments cannot overpay the invoice ledger stays balanced', async () => {
     const { app, invoices, ledger } = await createApp({ dbPath: ':memory:' });
     const server = app.listen(0);
     await new Promise((r) => server.once('listening', r));

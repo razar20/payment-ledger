@@ -13,7 +13,7 @@ describe('double-entry ledger core', () => {
     ar = ledger.getAccountByName('Accounts Receivable');
   });
 
-  test('posts balanced double-entry transactions; balances are derived from the log', () => {
+  test('posts balanced double-entry transactions', () => {
     for (const amt of [100, 250, 999]) {
       ledger.transfer({ debitAccountId: cash.id, creditAccountId: ar.id, amountCents: amt, description: 't' });
     }
@@ -23,7 +23,7 @@ describe('double-entry ledger core', () => {
     assert.ok(ledger.isBalanced()); // global invariant: Σ debits == Σ credits
   });
 
-  test('rejects unbalanced transactions atomically — nothing is written', () => {
+  test('rejects unbalanced transactions atomically ', () => {
     assert.throws(
       () =>
         ledger.postTransaction({
@@ -39,7 +39,7 @@ describe('double-entry ledger core', () => {
     assert.equal(ledger.getBalance(cash.id), 0);
   });
 
-  test('money is integer cents only — floats, zero, and negatives are rejected', () => {
+  test('money is integer cents only floats, zero, and negatives are rejected', () => {
     for (const amt of [10.5, 0, -100]) {
       assert.throws(
         () => ledger.transfer({ debitAccountId: cash.id, creditAccountId: ar.id, amountCents: amt, description: 't' }),

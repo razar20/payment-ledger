@@ -26,7 +26,7 @@ describe('invoice flow', () => {
     return inv;
   }
 
-  test('partial payments accumulate; invoice flips to paid exactly at total; ledger agrees', () => {
+  test('partial payments accumulate; invoice flips to paid exactly at total ledger agrees', () => {
     const inv = makeSentInvoice();
     assert.equal(invoices.totalCents(inv.id), 125000);
 
@@ -42,7 +42,7 @@ describe('invoice flow', () => {
     assert.ok(ledger.isBalanced());
   });
 
-  test('overpayment is rejected; paid total is unchanged', () => {
+  test('overpayment is rejected paid total is unchanged', () => {
     const inv = makeSentInvoice();
     invoices.applyPayment({ invoiceId: inv.id, amountCents: 120000, idempotencyKey: 'p1' });
     assert.throws(

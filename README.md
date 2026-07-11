@@ -1,6 +1,6 @@
 # Mini Payment Ledger & Invoice Service
 
-A small double-entry payment ledger and invoice service with a GraphQL API and a React UI. Built for the TMS Accounts Payable skill test.
+A small double-entry payment ledger and invoice service with a GraphQL API and a React UI. Built for the TMS Accounts Payable.
 
 **Stack:** Node.js 22+ · GraphQL (graphql-yoga) · SQLite (Node's built-in `node:sqlite` — zero native dependencies) · React 18 + Vite · plain CSS.
 
@@ -15,7 +15,7 @@ npm start       # serves UI + GraphQL on http://localhost:4000
 
 - UI: http://localhost:4000
 - GraphQL (with GraphiQL explorer): http://localhost:4000/graphql
-- Health check: http://localhost:4000/health
+
 
 For development with hot reload, run in two terminals: `npm run dev:server` and `npm run dev:client` (Vite dev server on :5173, proxying `/graphql` to :4000).
 
@@ -27,34 +27,6 @@ npm test
 
 7 focused tests across three suites — one per core requirement: double-entry balance enforcement (atomic rejection of unbalanced postings), derived balances, integer-cents money validation, partial payments and the paid transition, overpayment rejection, duplicate-webhook idempotency, and an HTTP-level concurrency race.
 
-## What it does
-
-### Part 1 — Core ledger
-- Create accounts (asset / liability / equity / revenue / expense) and post transactions between them via `postTransaction`.
-- Every transaction is double-entry: at least one debit and one credit, and **sum(debits) must equal sum(credits)** or the transaction is rejected atomically.
-- **Balances are never stored.** `Account.balanceCents` is always `SUM` over the entry log, sign-adjusted for the account's normal side (debit-normal for assets/expenses, credit-normal for the rest). There is no mutable balance column anywhere in the schema.
-- **Money is integer cents.** All amounts are validated as positive integers; floats are rejected at the API boundary and by `CHECK` constraints in SQLite.
-
-### Part 2 — Invoice flow
-- Invoices have a customer, line items (qty × unit price in cents), a due date, and a lifecycle: `draft → sent → paid`, with `overdue` **derived** (sent + past due date), never stored — same philosophy as derived balances.
-- Sending an invoice posts `DR Accounts Receivable / CR Revenue` (accrual revenue recognition). Applying a payment posts `DR Cash / CR Accounts Receivable`. The invoice sub-ledger and the general ledger always agree.
-- Partial payments accumulate; the invoice flips to `paid` exactly when paid == total.
-- **Overpayment** is rejected by re-checking `remaining = total − paid` inside the same DB transaction that inserts the payment.
-- **Double-payment / duplicate webhooks:** every payment requires an idempotency key with a `UNIQUE` constraint. A replay returns the original payment with `duplicate: true` and applies nothing. (The UI has a "Replay last webhook" button to demo this.)
-
-### Part 3 — Edge case: concurrent payments on the same invoice
-The whole check-then-write sequence (replay check → state check → overpayment check → ledger posting → payment insert → status flip) runs inside a **single SQLite transaction opened with `BEGIN IMMEDIATE`**, which acquires the write lock up front. SQLite serializes writers, so two "simultaneous" payments can never both read the same remaining balance — the race is eliminated by serializing the critical section, not by hoping.
-
-Covered by an HTTP-level test that fires 10 concurrent GraphQL mutations of $60 each against a $100 invoice at a real server → exactly 1 wins, 9 are rejected as overpayment, and the ledger stays balanced.
-
-In a production Postgres deployment the equivalent is `SELECT ... FOR UPDATE` on the invoice row (or `SERIALIZABLE` isolation with retry) — the principle is identical: make the read-check-write atomic.
-
-## Design decisions
-
-- **`node:sqlite` over better-sqlite3/Postgres:** same synchronous, serialized execution model as better-sqlite3 but built into Node — `npm install` needs no compiler and works on any platform. Right-sized for a take-home; the service layer takes `db` as a dependency, so swapping in Postgres means reimplementing ~10 prepared statements, not the domain logic.
-- **Service layer separate from GraphQL:** `ledger.js` and `invoices.js` are plain modules with no GraphQL awareness; resolvers are a thin mapping layer. Domain errors carry machine-readable codes (`OVERPAYMENT`, `INVALID_STATE`, `UNBALANCED_TRANSACTION`, …) surfaced in GraphQL `extensions.code`.
-- **Derived over stored, everywhere:** balances, invoice totals, paid amounts, remaining, and `overdue` status are all computed from source records. Nothing that can be derived is stored.
-- **Idempotency at two levels:** ledger transactions and payments each have their own unique idempotency keys, so even internal retries can't double-post.
 
 ## Shortcuts taken (deliberately)
 
@@ -107,8 +79,3 @@ query {
 }
 ```
 
-## Deploying (hosted UI)
-
-Single web service — the server serves the built client.
-
-**Render / Railway:** create a Node web service from this repo with build command `npm run setup` and start command `npm start`. SQLite writes to `server/data/ledger.db` (attach a persistent disk if you want data to survive restarts; for a demo, ephemeral is fine).
