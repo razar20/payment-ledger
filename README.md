@@ -4,6 +4,8 @@ A small double-entry payment ledger and invoice service with a GraphQL API and a
 
 **Stack:** Node.js 22+ · GraphQL (graphql-yoga) · SQLite (Node's built-in `node:sqlite` — zero native dependencies) · React 18 + Vite · plain CSS.
 
+**Live demo:** https://payment-ledger-xfl9.onrender.com (free tier — first load after idle can take ~50 seconds)
+
 ## How to run
 
 Requires Node.js >= 22.13 (for built-in SQLite). No database server, no compiler, no env vars needed.
@@ -27,6 +29,16 @@ npm test
 
 7 focused tests across three suites — one per core requirement: double-entry balance enforcement (atomic rejection of unbalanced postings), derived balances, integer-cents money validation, partial payments and the paid transition, overpayment rejection, duplicate-webhook idempotency, and an HTTP-level concurrency race.
 
+## How to test the app (2-minute walkthrough)
+
+On the live demo or http://localhost:4000, in the **Invoices** tab:
+
+1. Create a new invoice — e.g. one line item, qty 1, unit price 100 → total **$100.00**, status `draft`
+2. Click **Send invoice** → status becomes `sent` (check the **Accounts** tab: Accounts Receivable and Revenue both show $100.00 — the double-entry posting)
+3. In the payment box type `40` → **Apply payment** → Paid $40.00, Remaining $60.00
+4. A **Replay last webhook** button now sits next to "Apply payment" — click it to simulate the payment webhook firing twice with the same idempotency key → amber text: *"Duplicate webhook detected — payment was NOT applied twice"* (Paid stays at $40.00)
+5. Now type `999` → **Apply payment** → red text next to the form: *"Overpayment rejected: invoice #N has $60.00 remaining, attempted $999.00"*
+6. Pay the exact remainder (`60`) → status flips to `paid`; the **Ledger** tab shows the full double-entry transaction log, and the header badge reads **✓ Ledger balanced** throughout
 
 ## Shortcuts taken (deliberately)
 
